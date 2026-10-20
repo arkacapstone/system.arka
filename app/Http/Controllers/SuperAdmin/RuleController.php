@@ -4,7 +4,6 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HomeOffice;
-use App\Models\LeaveType;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\Settings\MailSettings;
@@ -12,14 +11,14 @@ use App\Services\Settings\SystemRules;
 use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * Super Admin → System & Rules (Blueprint §3.1 module 8): the settings Payroll and the rest of
- * ARKA apply, plus the leave types contractors file against. Tithes and devotional penalties are
- * deliberately absent: they are never payroll deductions.
+ * ARKA apply. Tithes and devotional penalties are deliberately absent: they are never payroll
+ * deductions. Leave types are not managed here: ARKA makes "Paid leave" and "Unpaid leave" on
+ * first use (LeaveType).
  */
 class RuleController extends Controller
 {
@@ -50,13 +49,6 @@ class RuleController extends Controller
                 'hasPassword' => $mail->hasPassword(),
                 'configured' => $mail->isConfigured(),
             ],
-            'leaveTypes' => LeaveType::query()->withCount('requests')->orderByDesc('is_paid')->orderBy('id')->get()
-                ->map(fn (LeaveType $type) => [
-                    'id' => $type->id,
-                    'name' => $type->leave_type_name,
-                    'paid' => $type->is_paid,
-                    'requests' => $type->requests_count,
-                ])->all(),
         ]);
     }
 
@@ -84,22 +76,6 @@ class RuleController extends Controller
         $activity->log('rules', 'Updated system rules', null, implode(', ', $changed));
 
         return back()->with('success', count($changed) === 1 ? "{$changed[0]} updated." : count($changed).' rules updated.');
-    }
-
-    public function storeLeaveType(Request $request, ActivityLogger $activity): RedirectResponse
-    {
-        $type = LeaveType::create($this->leaveTypeAttributes($request));
-        $activity->log('rules', 'Added leave type', $type, $type->leave_type_name);
-
-        return back()->with('success', "{$type->leave_type_name} added.");
-    }
-
-    public function updateLeaveType(Request $request, LeaveType $leaveType, ActivityLogger $activity): RedirectResponse
-    {
-        $leaveType->update($this->leaveTypeAttributes($request, $leaveType));
-        $activity->log('rules', 'Updated leave type', $leaveType, $leaveType->leave_type_name);
-
-        return back()->with('success', "{$leaveType->leave_type_name} updated.");
     }
 
     /**
@@ -220,21 +196,5 @@ class RuleController extends Controller
                 array_keys(array_filter(SystemRules::definitions(), fn (array $definition) => $definition['group'] === $group)),
             )),
         ], $groups);
-    }
-
-    /**
-     * @return array{leave_type_name: string, is_paid: bool}
-     */
-    private function leaveTypeAttributes(Request $request, ?LeaveType $current = null): array
-    {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(LeaveType::class, 'leave_type_name')->where('home_office_id', HomeOffice::currentId())->ignore($current)],
-            'paid' => ['required', 'boolean'],
-        ]);
-
-        return [
-            'leave_type_name' => $validated['name'],
-            'is_paid' => (bool) $validated['paid'],
-        ];
     }
 }

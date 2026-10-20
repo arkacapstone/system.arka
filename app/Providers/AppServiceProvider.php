@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Settings\MailSettings;
 use App\Services\Settings\SystemRules;
 use Illuminate\Mail\MailManager;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Features;
@@ -39,6 +40,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Links in emails (invites, password resets) always use APP_URL, not the address the
+        // sender happened to browse with: a link made while on 127.0.0.1 would only work on
+        // the sender's own computer.
+        URL::forceRootUrl(config('app.url'));
 
         // After signing in (password, passkey or email verification) every role goes through
         // /dashboard, which sends each user to their own home. Fortify's default is /home.

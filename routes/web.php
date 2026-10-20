@@ -137,8 +137,6 @@ Route::middleware(['auth', 'verified', 'role:'.UserRole::SuperAdmin->value])
         Route::get('rules', [RuleController::class, 'index'])->name('rules');
         Route::prefix('rules')->name('rules.')->controller(RuleController::class)->group(function () {
             Route::put('/', 'update')->name('update');
-            Route::post('leave-types', 'storeLeaveType')->name('leave-types.store');
-            Route::put('leave-types/{leaveType}', 'updateLeaveType')->name('leave-types.update');
         });
         Route::put('rules/mail', [MailSettingsController::class, 'update'])->name('rules.mail.update');
         Route::post('rules/mail/test', [MailSettingsController::class, 'test'])->middleware('throttle:5,1')->name('rules.mail.test');
@@ -174,9 +172,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 
-    // Community chat: one room per home office, for every role.
+    // Community chat (the chat box opened from the top bar): one room per home office, for every role.
     Route::middleware('verified')->prefix('community')->name('community.')->controller(CommunityChatController::class)->group(function () {
-        Route::get('/', 'index')->name('index');
+        Route::get('/feed', 'feed')->name('feed');
         Route::post('/messages', 'store')->middleware('throttle:30,1')->name('messages.store');
         Route::delete('/messages/{message}', 'destroy')->name('messages.destroy');
     });

@@ -3,7 +3,6 @@
 namespace Tests\Feature\SuperAdmin;
 
 use App\Models\HomeOffice;
-use App\Models\LeaveType;
 use App\Models\User;
 use App\Services\Settings\SystemRules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -57,26 +56,6 @@ class SystemRulesTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->put(route('super-admin.rules.update'), ['first_cutoff_day' => 26])
             ->assertSessionHasErrors('second_cutoff_day');
-    }
-
-    public function test_leave_types_can_be_added_and_edited(): void
-    {
-        $this->actingAs($this->superAdmin)
-            ->post(route('super-admin.rules.leave-types.store'), ['name' => 'Sick leave', 'paid' => true])
-            ->assertSessionHasNoErrors();
-
-        $type = LeaveType::query()->firstWhere('leave_type_name', 'Sick leave');
-        $this->assertTrue($type->is_paid);
-
-        $this->actingAs($this->superAdmin)
-            ->put(route('super-admin.rules.leave-types.update', $type), ['name' => 'Emergency leave', 'paid' => false])
-            ->assertSessionHasNoErrors();
-
-        $this->assertFalse($type->fresh()->is_paid);
-
-        $this->actingAs($this->superAdmin)
-            ->post(route('super-admin.rules.leave-types.store'), ['name' => 'Emergency leave', 'paid' => true])
-            ->assertSessionHasErrors('name');
     }
 
     public function test_admins_cannot_change_rules(): void

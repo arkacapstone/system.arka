@@ -1,6 +1,7 @@
 import AppearanceSwitch from '@/Components/Console/AppearanceSwitch';
 import { FlashToast } from '@/Components/Console/Flash';
 import NotificationBell from '@/Components/Console/NotificationBell';
+import CommunityChat from '@/Components/Console/CommunityChat';
 import { ChevronRightIcon, MenuIcon, PanelIcon, SwitchIcon, UserIcon, moduleIcons } from '@/Components/Icons';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
@@ -337,6 +338,7 @@ export default function AppLayout({ title, eyebrow, children }) {
                     <div className="flex items-center gap-2 sm:gap-3">
                         <LiveClock />
                         <NotificationBell />
+                        <CommunityChat />
                         <DashboardSwitcher />
                         <span aria-hidden="true" className="mx-1 hidden h-9 w-px bg-console-line sm:block" />
                         <ProfileMenu />

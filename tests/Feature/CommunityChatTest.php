@@ -7,11 +7,11 @@ use App\Models\HomeOffice;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
- * Community Chat: one room per home office, for every role.
+ * Community Chat: one room per home office, for every role, in the chat box opened from the
+ * top bar. The box talks to the server in JSON.
  */
 class CommunityChatTest extends TestCase
 {
@@ -32,99 +32,113 @@ class CommunityChatTest extends TestCase
         $this->contractor = User::factory()->create();
     }
 
-    public function test_every_role_can_open_the_chat_and_post(): void
+    public function test_every_role_can_post_and_read_the_chat(): void
     {
         foreach ([$this->superAdmin, $this->admin, $this->contractor] as $user) {
             $this->actingAs($user)
-                ->post(route('community.messages.store'), ['body' => "Hello from {$user->name}"])
-                ->assertSessionHasNoErrors();
+                ->postJson(route('community.messages.store'), ['body' => "Hello from {$user->name}"])
+                ->assertCreated();
         }
 
         $this->actingAs($this->contractor)
-            ->get(route('community.index'))
+            ->getJson(route('community.feed', ['messages' => 1]))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Community/Index')
-                ->has('messages', 3)
-                ->where('messages.0.sender.name', $this->superAdmin->name)
-                ->where('messages.0.mine', false)
-                ->where('messages.2.mine', true)
-                ->where('memberCount', 3));
+            ->assertJsonCount(3, 'messages')
+            ->assertJsonPath('messages.0.sender.name', $this->superAdmin->name)
+            ->assertJsonPath('messages.0.mine', false)
+            ->assertJsonPath('messages.2.mine', true)
+            ->assertJsonPath('memberCount', 3);
 
         // One community room for the whole home office.
         $this->assertSame(1, Conversation::query()->withoutGlobalScopes()->count());
         $this->assertDatabaseCount('conversation_participants', 3);
     }
 
+    public function test_the_chat_icon_counts_unread_messages_until_the_box_is_opened(): void
+    {
+        $this->actingAs($this->admin)->postJson(route('community.messages.store'), ['body' => 'One']);
+        $this->actingAs($this->admin)->postJson(route('community.messages.store'), ['body' => 'Two']);
+
+        $this->actingAs($this->contractor)
+            ->getJson(route('community.feed'))
+            ->assertExactJson(['unreadCount' => 2]);
+
+        // The sender's own messages are never unread for them.
+        $this->actingAs($this->admin)
+            ->getJson(route('community.feed'))
+            ->assertExactJson(['unreadCount' => 0]);
+
+        // Opening the box marks everything read.
+        $this->actingAs($this->contractor)->getJson(route('community.feed', ['messages' => 1]));
+        $this->travel(1)->seconds();
+
+        $this->actingAs($this->contractor)
+            ->getJson(route('community.feed'))
+            ->assertExactJson(['unreadCount' => 0]);
+    }
+
     public function test_an_empty_message_is_refused(): void
     {
         $this->actingAs($this->contractor)
-            ->post(route('community.messages.store'), ['body' => '   '])
-            ->assertSessionHasErrors('body');
+            ->postJson(route('community.messages.store'), ['body' => '   '])
+            ->assertJsonValidationErrors('body');
 
         $this->assertDatabaseCount('messages', 0);
-    }
-
-    public function test_opening_the_chat_marks_it_read(): void
-    {
-        $this->actingAs($this->contractor)->get(route('community.index'));
-
-        $this->assertNotNull(
-            Conversation::query()->withoutGlobalScopes()->sole()->participants()->whereKey($this->contractor->id)->sole()->pivot->last_read_at
-        );
     }
 
     public function test_people_delete_their_own_messages_and_the_super_admin_any(): void
     {
-        $this->actingAs($this->admin)->post(route('community.messages.store'), ['body' => 'From the admin']);
+        $this->actingAs($this->admin)->postJson(route('community.messages.store'), ['body' => 'From the admin']);
         $message = Message::query()->withoutGlobalScopes()->sole();
 
         $this->actingAs($this->contractor)
-            ->delete(route('community.messages.destroy', $message))
+            ->deleteJson(route('community.messages.destroy', $message))
             ->assertForbidden();
 
         $this->actingAs($this->superAdmin)
-            ->delete(route('community.messages.destroy', $message))
-            ->assertRedirect();
+            ->deleteJson(route('community.messages.destroy', $message))
+            ->assertOk()
+            ->assertJsonCount(0, 'messages');
 
-        $this->assertDatabaseCount('messages', 0);
-
-        $this->actingAs($this->contractor)->post(route('community.messages.store'), ['body' => 'Mine']);
+        $this->actingAs($this->contractor)->postJson(route('community.messages.store'), ['body' => 'Mine']);
         $own = Message::query()->withoutGlobalScopes()->sole();
 
         $this->actingAs($this->contractor)
-            ->delete(route('community.messages.destroy', $own))
-            ->assertRedirect();
+            ->deleteJson(route('community.messages.destroy', $own))
+            ->assertOk();
 
         $this->assertDatabaseCount('messages', 0);
     }
 
     public function test_each_home_office_has_its_own_chat(): void
     {
-        $this->actingAs($this->contractor)->post(route('community.messages.store'), ['body' => 'Makarius only']);
+        $this->actingAs($this->contractor)->postJson(route('community.messages.store'), ['body' => 'Makarius only']);
         $message = Message::query()->withoutGlobalScopes()->sole();
 
         $other = HomeOffice::query()->create(['name' => 'Harbor Staffing']);
         $outsider = User::factory()->superAdmin()->create(['home_office_id' => $other->id]);
 
         $this->actingAs($outsider)
-            ->get(route('community.index'))
-            ->assertInertia(fn (Assert $page) => $page->has('messages', 0)->where('memberCount', 1));
+            ->getJson(route('community.feed', ['messages' => 1]))
+            ->assertJsonCount(0, 'messages')
+            ->assertJsonPath('memberCount', 1);
+
+        $this->actingAs($outsider)
+            ->getJson(route('community.feed'))
+            ->assertExactJson(['unreadCount' => 0]);
 
         // Even by its link, another home office's message is not found.
         $this->actingAs($outsider)
-            ->delete(route('community.messages.destroy', $message))
+            ->deleteJson(route('community.messages.destroy', $message))
             ->assertNotFound();
 
         $this->assertSame(2, Conversation::query()->withoutGlobalScopes()->count());
     }
 
-    public function test_the_sidebar_links_to_the_chat_for_every_role(): void
+    public function test_the_chat_is_not_a_sidebar_module(): void
     {
-        foreach ([$this->superAdmin, $this->admin, $this->contractor] as $user) {
-            $this->actingAs($user)
-                ->get(route('profile.edit'))
-                ->assertInertia(fn (Assert $page) => $page->where('navigation', fn ($items) => collect($items)->contains('key', 'community')));
-        }
+        $this->actingAs($this->contractor)
+            ->get(route('profile.edit'))
+            ->assertInertia(fn ($page) => $page->where('navigation', fn ($items) => ! collect($items)->contains('key', 'community')));
     }
 }

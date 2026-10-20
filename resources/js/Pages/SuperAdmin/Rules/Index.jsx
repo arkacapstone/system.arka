@@ -1,55 +1,10 @@
-import Dialog from '@/Components/Console/Dialog';
 import Field, { ConsoleButton, PasswordField, SecondaryButton } from '@/Components/Console/Field';
 import Panel, { PanelHeading } from '@/Components/Console/Panel';
 import RuleGroupForm from '@/Components/Console/RuleGroupForm';
 import { Tag } from '@/Components/Console/StatusBadge';
-import { PlusIcon } from '@/Components/Icons';
-import Table, { Cell, Row } from '@/Components/Workforce/Table';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-
-function LeaveTypeDialog({ leaveType, onClose }) {
-    const editing = leaveType?.id !== undefined;
-    const { data, setData, post, put, processing, errors } = useForm({
-        name: leaveType?.name ?? '',
-        paid: leaveType?.paid ?? true,
-    });
-
-    const submit = (e) => {
-        e.preventDefault();
-        const options = { preserveScroll: true, onSuccess: onClose };
-
-        editing ? put(route('super-admin.rules.leave-types.update', leaveType.id), options) : post(route('super-admin.rules.leave-types.store'), options);
-    };
-
-    return (
-        <Dialog open={leaveType !== null} onClose={onClose} side title={editing ? 'Edit leave type' : 'Add leave type'}>
-            <form onSubmit={submit} className="flex flex-col gap-5">
-                <Field id="name" label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
-                <label htmlFor="paid" className="flex cursor-pointer items-start gap-3 border border-console-line px-4 py-3 hover:border-arka-teal">
-                    <input
-                        id="paid"
-                        type="checkbox"
-                        checked={data.paid}
-                        onChange={(e) => setData('paid', e.target.checked)}
-                        className="mt-0.5 rounded-none border-console-line text-arka-teal focus:ring-arka-teal"
-                    />
-                    <span>
-                        <span className="block text-sm font-medium text-console-heading">Paid leave</span>
-                        <span className="mt-0.5 block text-xs text-console-muted">Paid leave is never deducted from payroll. Unpaid leave is deducted at the daily rate.</span>
-                    </span>
-                </label>
-                <div className="flex justify-end gap-2">
-                    <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
-                    <ConsoleButton type="submit" disabled={processing}>
-                        {editing ? 'Save leave type' : 'Add leave type'}
-                    </ConsoleButton>
-                </div>
-            </form>
-        </Dialog>
-    );
-}
 
 /**
  * The Gmail account ARKA sends invite links and password resets from.
@@ -137,9 +92,7 @@ function MailSenderPanel({ mail }) {
     );
 }
 
-export default function Index({ groups, leaveTypes, mail }) {
-    const [editing, setEditing] = useState(null); // null | {} (new) | leave type
-
+export default function Index({ groups, mail }) {
     return (
         <SuperAdminLayout title="System & Rules">
             <div className="mx-auto flex max-w-[1560px] flex-col gap-8">
@@ -153,39 +106,7 @@ export default function Index({ groups, leaveTypes, mail }) {
                 ))}
 
                 <MailSenderPanel mail={mail} />
-
-                <Panel>
-                    <PanelHeading
-                        title="Leave types"
-                        subtitle="Contractors choose paid or unpaid leave; ARKA files it under the first matching type below."
-                        action={
-                            <ConsoleButton onClick={() => setEditing({})}>
-                                <PlusIcon className="h-4 w-4" /> Add leave type
-                            </ConsoleButton>
-                        }
-                    />
-                    <div className="mt-6">
-                        <Table columns={['Name', 'Pay', 'Requests', 'Action']} isEmpty={leaveTypes.length === 0} emptyMessage="No leave types yet. ARKA creates “Paid leave” and “Unpaid leave” on first use." minWidth={640}>
-                            {leaveTypes.map((type) => (
-                                <Row key={type.id}>
-                                    <Cell className="font-medium text-console-heading">{type.name}</Cell>
-                                    <Cell>
-                                        <Tag tone={type.paid ? 'live' : 'closed'}>{type.paid ? 'Paid' : 'Unpaid'}</Tag>
-                                    </Cell>
-                                    <Cell className="font-mono">{type.requests}</Cell>
-                                    <td className="py-3 text-right align-top">
-                                        <button type="button" onClick={() => setEditing(type)} className="px-2 py-1 text-xs text-arka-teal hover:bg-console-raised">
-                                            Edit
-                                        </button>
-                                    </td>
-                                </Row>
-                            ))}
-                        </Table>
-                    </div>
-                </Panel>
             </div>
-
-            <LeaveTypeDialog key={editing?.id ?? (editing ? 'new' : 'closed')} leaveType={editing} onClose={() => setEditing(null)} />
         </SuperAdminLayout>
     );
 }

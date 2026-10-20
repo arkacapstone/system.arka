@@ -246,3 +246,17 @@ Isang chat room bawat home office, para sa lahat ng role (Super Admin, Admins, C
 | `tests/Feature/CommunityChatTest.php` | 6 na test | Lahat ng role ay makakapag-post; bawal ang walang laman; hiwalay ang chat ng bawat home office; sino ang makakapag-delete |
 
 **Para sa defense:** "The chat uses polling every 4 seconds through Inertia's `usePoll`. It is simpler than websockets and enough for a small team. Messages are isolated per home office by the same global scope as the rest of ARKA."
+
+### 12.1 Ginawang Messenger-style na chat box
+
+Inalis ang "Community Chat" sa sidebar. Nasa top bar na ito ngayon, katabi ng notification bell.
+
+| Path | Ano ang binago | Ibig sabihin |
+|---|---|---|
+| `resources/js/Components/Console/CommunityChat.jsx` | Bagong component | Chat icon na may gintong badge (bilang ng hindi pa nababasa). Kapag pinindot, lalabas ang kahon sa kanang ibaba. May minimize (—) at close (X). Naaalala sa `localStorage` kung bukas, naka-minimize o sarado ito, kaya hindi ito nagsasara kapag lumipat ng page. |
+| `app/Http/Controllers/CommunityChatController.php` | JSON na lang ang sagot | `feed`: `unreadCount` lang, o kasama ang mga mensahe kapag `messages=1` (bukas ang kahon, kaya mamarkahan itong nabasa). `store` at `destroy`: ibinabalik ang na-update na listahan. |
+| `routes/web.php` | `community.feed` sa halip na `community.index` | Wala nang hiwalay na page |
+| `app/Support/Navigation.php`, `Icons.jsx`, `AppLayout.jsx` | Inalis sa sidebar, idinagdag sa header | |
+| `resources/js/Pages/Community/Index.jsx` | Binura | Napalitan na ng chat box |
+
+**Polling:** bawat 4 segundo kapag bukas ang kahon, at bawat 30 segundo kapag sarado o naka-minimize (para sa badge lang). Humihinto ito kapag nakatago ang tab ng browser.

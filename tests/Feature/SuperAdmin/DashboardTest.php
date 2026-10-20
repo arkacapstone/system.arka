@@ -70,10 +70,9 @@ class DashboardTest extends TestCase
                 // Nothing is saved yet, so the Super Admin still has to open verification (step 1).
                 ->where('payroll.steps.0.state', 'current')
                 ->where('payroll.action.label', 'Open attendance verification')
-                ->has('navigation', 12)
+                ->has('navigation', 11)
                 ->where('navigation.1.key', 'workforce')
                 ->where('navigation.9.key', 'notifications')
-                ->where('navigation.10.key', 'community')
             );
     }
 

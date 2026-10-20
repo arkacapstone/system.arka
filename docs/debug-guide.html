@@ -1,0 +1,859 @@
+<title>ARKA Debug Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: blueprint console — sticky tab rail over one panel at a time; tags mark Frontend / Backend / Database and the 3 error types. */
+:root {
+  --bg: #F6F7F9; --panel: #FFFFFF; --raised: #EEF4F6; --line: #D4D9DE;
+  --ink: #1C2533; --heading: #16305C; --muted: #5B6675;
+  --teal: #2F8299; --gold: #F0A81E; --hero: #16305C; --hero-ink: #F2F6FA;
+  --fe: #1F7A8C; --fe-bg: #E2F2F5;
+  --be: #8A5A0B; --be-bg: #FCF1DC;
+  --db: #4B5A70; --db-bg: #E9EDF2;
+  --syn: #B45309; --syn-bg: #FEF3E2;
+  --run: #C81E1E; --run-bg: #FDECEC;
+  --log: #6D3FD0; --log-bg: #F1ECFC;
+  --ok: #1E7F4F; --ok-bg: #E4F4EB;
+  --code-bg: #F1F4F7;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1220; --panel: #111B2D; --raised: #1B2940; --line: #293852;
+  --ink: #CBD5E1; --heading: #E2EAF5; --muted: #8E9CB2;
+  --teal: #4FB3C8; --gold: #F0A81E; --hero: #142D58; --hero-ink: #F2F6FA;
+  --fe: #6FCBDB; --fe-bg: #11313A;
+  --be: #F3C064; --be-bg: #3A2C10;
+  --db: #A9B8CE; --db-bg: #1F2B3E;
+  --syn: #F5A54A; --syn-bg: #3A2410;
+  --run: #F87171; --run-bg: #3B1518;
+  --log: #B79CFF; --log-bg: #2A1F48;
+  --ok: #5FD39A; --ok-bg: #12301F;
+  --code-bg: #0E1726; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0B1220; --panel: #111B2D; --raised: #1B2940; --line: #293852;
+  --ink: #CBD5E1; --heading: #E2EAF5; --muted: #8E9CB2;
+  --teal: #4FB3C8; --gold: #F0A81E; --hero: #142D58; --hero-ink: #F2F6FA;
+  --fe: #6FCBDB; --fe-bg: #11313A;
+  --be: #F3C064; --be-bg: #3A2C10;
+  --db: #A9B8CE; --db-bg: #1F2B3E;
+  --syn: #F5A54A; --syn-bg: #3A2410;
+  --run: #F87171; --run-bg: #3B1518;
+  --log: #B79CFF; --log-bg: #2A1F48;
+  --ok: #5FD39A; --ok-bg: #12301F;
+  --code-bg: #0E1726; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--f-display); color: var(--heading); text-wrap: balance; line-height: 1.1; margin: 0; letter-spacing: .01em; }
+code, pre, .mono { font-family: var(--f-mono); font-size: .86em; }
+code { background: var(--code-bg); border: 1px solid var(--line); padding: 0 .3em; white-space: nowrap; }
+a { color: var(--teal); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Hero */
+.hero { background: var(--hero); color: var(--hero-ink); }
+.hero .wrap { padding-block: 28px 22px; display: grid; gap: 14px; }
+.eyebrow { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .14em; font-size: 13px; font-weight: 600; color: var(--gold); }
+.hero h1 { color: var(--hero-ink); font-size: clamp(32px, 6vw, 52px); font-weight: 700; text-transform: uppercase; }
+.hero p { margin: 0; max-width: 64ch; color: #C9D6E6; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.search { display: flex; gap: 8px; max-width: 560px; }
+.search input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border: 1px solid #3B5683; background: #0F2448; color: #F2F6FA; border-radius: 0; }
+.search input::placeholder { color: #8FA6C6; }
+.search button { font: inherit; font-weight: 600; padding: 0 14px; border: 1px solid #3B5683; background: transparent; color: #F2F6FA; cursor: pointer; }
+
+/* Tabs */
+.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+.tabs .wrap { display: flex; gap: 0; overflow-x: auto; scrollbar-width: thin; }
+.tab { flex: 0 0 auto; font-family: var(--f-display); font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 12px 14px 9px; cursor: pointer; white-space: nowrap; }
+.tab:hover { color: var(--teal); }
+.tab[aria-selected="true"] { color: var(--heading); border-bottom-color: var(--teal); }
+.tab .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
+
+/* Panels */
+main .wrap { padding-block: 28px 64px; }
+.panel { display: grid; gap: 22px; }
+.panel-head { display: grid; gap: 6px; }
+.panel-head h2 { font-size: clamp(26px, 4vw, 36px); text-transform: uppercase; }
+.panel-head p { margin: 0; max-width: 70ch; color: var(--muted); }
+.box { background: var(--panel); border: 1px solid var(--line); padding: 18px; min-width: 0; }
+.box h3 { font-size: 20px; text-transform: uppercase; margin-bottom: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.note { border-left: 3px solid var(--gold); background: var(--panel); padding: 12px 16px; }
+.note b { color: var(--heading); }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+/* Tags */
+.tag { display: inline-block; font-family: var(--f-display); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border: 1px solid currentColor; white-space: nowrap; }
+.t-fe { color: var(--fe); background: var(--fe-bg); }
+.t-be { color: var(--be); background: var(--be-bg); }
+.t-db { color: var(--db); background: var(--db-bg); }
+.t-syn { color: var(--syn); background: var(--syn-bg); }
+.t-run { color: var(--run); background: var(--run-bg); }
+.t-log { color: var(--log); background: var(--log-bg); }
+.hero .tag { background: transparent; }
+.hero .t-fe { color: #7FD6E5; } .hero .t-be { color: #F6C76A; } .hero .t-db { color: #B8C6DA; }
+
+/* Tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-family: var(--f-display); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; background: var(--raised); padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: normal; word-break: break-word; }
+.term { font-weight: 700; color: var(--heading); white-space: nowrap; }
+.bad { color: var(--run); }
+.good { color: var(--ok); }
+.codepair { display: grid; gap: 4px; }
+.codepair div { font-family: var(--f-mono); font-size: 12.5px; padding: 3px 7px; word-break: break-word; }
+.codepair .x { background: var(--run-bg); color: var(--run); }
+.codepair .x::before { content: "✗  "; }
+.codepair .o { background: var(--ok-bg); color: var(--ok); }
+.codepair .o::before { content: "✓  "; }
+.msg { font-family: var(--f-mono); font-size: 12.5px; color: var(--run); word-break: break-word; }
+
+/* Architecture diagram */
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.lane { border: 1px solid var(--line); background: var(--panel); padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.lane.fe { border-top: 4px solid var(--fe); } .lane.be { border-top: 4px solid var(--be); } .lane.db { border-top: 4px solid var(--db); }
+.lane h3 { font-size: 18px; text-transform: uppercase; margin: 0; }
+.lane .sub { font-size: 13px; color: var(--muted); margin: 0; }
+.lane .chip { font-family: var(--f-mono); font-size: 12px; background: var(--code-bg); border: 1px solid var(--line); padding: 5px 8px; word-break: break-word; }
+.arrow { display: grid; align-content: center; gap: 6px; text-align: center; font-family: var(--f-display); font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.arrow span { font-size: 22px; color: var(--teal); line-height: 1; }
+@media (max-width: 820px) { .arch { grid-template-columns: 1fr; } .arrow { grid-auto-flow: column; justify-content: center; } .arrow span { transform: rotate(90deg); } }
+
+/* Flow steps */
+.flow-switch { display: inline-flex; border: 1px solid var(--line); background: var(--panel); }
+.flow-switch button { font: inherit; font-weight: 600; padding: 8px 16px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.flow-switch button[aria-pressed="true"] { background: var(--teal); color: #fff; }
+.oneline { font-family: var(--f-mono); font-size: 13px; background: var(--hero); color: var(--hero-ink); padding: 14px 16px; overflow-x: auto; white-space: nowrap; }
+.oneline b { color: var(--gold); font-weight: 500; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+ol.steps > li { display: grid; grid-template-columns: 44px 1fr; gap: 14px; position: relative; }
+ol.steps > li::before { counter-increment: s; content: counter(s); font-family: var(--f-display); font-weight: 700; font-size: 18px; width: 44px; height: 44px; display: grid; place-items: center; background: var(--panel); border: 2px solid var(--teal); color: var(--heading); z-index: 1; }
+ol.steps > li::after { content: ""; position: absolute; left: 21px; top: 44px; bottom: 0; width: 2px; background: var(--line); }
+ol.steps > li:last-child::after { display: none; }
+.step { padding-bottom: 18px; min-width: 0; }
+.step-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 9px; }
+.step-top strong { color: var(--heading); font-size: 16px; }
+.step p { margin: 4px 0 6px; }
+.step .file { font-family: var(--f-mono); font-size: 12.5px; color: var(--teal); word-break: break-word; }
+details { margin-top: 6px; }
+summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+summary:hover { color: var(--teal); }
+pre { margin: 8px 0 0; background: var(--code-bg); border: 1px solid var(--line); padding: 12px; overflow-x: auto; line-height: 1.5; }
+
+/* Compare cards */
+.types { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.type { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c); padding: 16px; display: grid; gap: 8px; align-content: start; }
+.type h3 { color: var(--c); font-size: 22px; text-transform: uppercase; }
+.type dl { margin: 0; display: grid; gap: 6px; }
+.type dt { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--muted); }
+.type dd { margin: 0; }
+.meter { display: flex; gap: 3px; } .meter i { width: 18px; height: 6px; background: var(--line); } .meter i.on { background: var(--c); }
+
+/* Decision helper */
+.decide { display: grid; gap: 10px; }
+.decide .q { font-weight: 700; color: var(--heading); }
+.decide .row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+
+/* Quiz */
+.quiz { display: grid; gap: 12px; }
+.qcard { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 10px; }
+.qcard .snippet { font-family: var(--f-mono); font-size: 13px; background: var(--code-bg); border: 1px solid var(--line); padding: 10px 12px; word-break: break-word; white-space: pre-wrap; }
+.qbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.qbtns button { font: inherit; font-weight: 600; font-size: 14px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--raised); color: var(--ink); }
+.qbtns button:hover { border-color: var(--teal); }
+.qbtns button.right { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.qbtns button.wrong { background: var(--run-bg); color: var(--run); border-color: var(--run); }
+.qexp { font-size: 14px; border-left: 3px solid var(--teal); padding-left: 10px; }
+.score { font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--heading); text-transform: uppercase; letter-spacing: .05em; }
+.btn { font: inherit; font-weight: 600; padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--teal); color: var(--teal); }
+
+.cmd { font-family: var(--f-mono); font-size: 13px; color: var(--heading); white-space: nowrap; }
+.empty { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); }
+.searchhit { background: var(--be-bg); }
+footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">ARKA · Pang-aral para sa debugging</div>
+    <h1>ARKA Debug Guide</h1>
+    <p>Diksyunaryo ng code ng ARKA. Alamin kung saan ang frontend at backend, paano dumadaloy ang isang request, ano ang ibig sabihin ng OOP terms, at paano hanapin ang <b>Syntax</b>, <b>Runtime</b> at <b>Logic</b> errors.</p>
+    <div class="legend" aria-label="Kahulugan ng mga tag">
+      <span class="tag t-fe">Frontend</span><span class="tag t-be">Backend</span><span class="tag t-db">Database</span>
+    </div>
+    <form class="search" id="searchForm" role="search">
+      <input id="q" type="search" placeholder="Hanapin: validate, null, useForm, 403, trait…" aria-label="Hanapin sa buong guide" autocomplete="off">
+      <button type="button" id="clearQ">Clear</button>
+    </form>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Mga bahagi">
+  <div class="wrap" role="tablist" id="tablist"></div>
+</nav>
+
+<main>
+  <div class="wrap">
+
+    <!-- MAPA -->
+    <section class="panel" id="p-mapa" data-tab="mapa" role="tabpanel">
+      <div class="panel-head">
+        <div class="eyebrow">Hakbang 1</div>
+        <h2>Mapa: Frontend vs Backend</h2>
+        <p>Ang ARKA ay Laravel (PHP) sa backend at React (JSX) sa frontend. Pinagdudugtong sila ng Inertia.js, kaya walang hiwalay na API: ang controller ang nagpapadala ng data diretso sa page bilang <b>props</b>.</p>
+      </div>
+
+      <div class="arch" aria-label="Diagram: Browser, Server, Database">
+        <div class="lane fe">
+          <span class="tag t-fe" style="justify-self:start">Frontend</span>
+          <h3>Browser</h3>
+          <p class="sub">React · <code>.jsx</code> · tumatakbo sa computer ng user</p>
+          <div class="chip">resources/js/Pages/*.jsx</div>
+          <div class="chip">resources/js/Components/</div>
+          <div class="chip">resources/js/Layouts/</div>
+        </div>
+        <div class="arrow"><span>⇄</span>request<br>/ props</div>
+        <div class="lane be">
+          <span class="tag t-be" style="justify-self:start">Backend</span>
+          <h3>Server</h3>
+          <p class="sub">Laravel · <code>.php</code> · tumatakbo sa server</p>
+          <div class="chip">routes/ → Middleware</div>
+          <div class="chip">Controllers → Actions / Services</div>
+          <div class="chip">Models · Enums</div>
+        </div>
+        <div class="arrow"><span>⇄</span>SQL<br>/ rows</div>
+        <div class="lane db">
+          <span class="tag t-db" style="justify-self:start">Database</span>
+          <h3>MySQL</h3>
+          <p class="sub">Tables: users, leave_requests, attendances…</p>
+          <div class="chip">database/migrations/</div>
+          <div class="chip">database/seeders/</div>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div class="note"><b>.jsx / .js</b> = Frontend. Error nito ay nasa <b>browser console (F12)</b> o sa terminal ng <code>npm run dev</code>.</div>
+        <div class="note"><b>.php</b> = Backend. Error nito ay nasa <b>pulang Laravel page</b> o sa <code>storage/logs/laravel.log</code>.</div>
+        <div class="note"><b>Pangalan ng props</b> sa PHP at sa JSX ay dapat <b>magkapareho</b>. Kapag hindi, <code>undefined</code> ang laman sa page.</div>
+      </div>
+
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Folder / File</th><th>Saan</th><th>Ano ang laman</th></tr></thead>
+        <tbody id="folders"></tbody>
+      </table></div>
+    </section>
+
+    <!-- FLOW -->
+    <section class="panel" id="p-flow" data-tab="flow" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Hakbang 2 · Halimbawa: Leave Request</div>
+        <h2>Ang Flow ng Isang Request</h2>
+        <p>Sundan ang totoong code kapag nag-file ng leave ang contractor. Halos lahat ng ibang module (overtime, cash advance, devotional, attendance) ay ganito rin. Palitan lang ang pangalan ng file.</p>
+      </div>
+      <div class="oneline">JSX form <b>→</b> route() <b>→</b> routes/*.php <b>→</b> middleware <b>→</b> Controller (validate) <b>→</b> Action (rules) <b>→</b> Model (DB) <b>→</b> back() / Inertia::render <b>→</b> JSX</div>
+      <div class="flow-switch" role="group" aria-label="Piliin ang flow">
+        <button type="button" data-flow="open" aria-pressed="true">A. Pagbukas ng page (GET)</button>
+        <button type="button" data-flow="submit" aria-pressed="false">B. Pag-submit ng form (POST)</button>
+      </div>
+      <ol class="steps" id="steps"></ol>
+    </section>
+
+    <!-- OOP -->
+    <section class="panel" id="p-oop" data-tab="oop" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Diksyunaryo</div>
+        <h2>OOP sa ARKA</h2>
+        <p>Bawat termino ay may totoong halimbawa mula sa code. Buksan ang file para makita mo mismo.</p>
+      </div>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Termino</th><th>Simpleng ibig sabihin</th><th>Halimbawa sa ARKA</th></tr></thead>
+        <tbody id="oop"></tbody>
+      </table></div>
+      <div class="box">
+        <h3>Bakit hiwalay-hiwalay ang mga layer?</h3>
+        <p style="margin:0 0 12px;color:var(--muted)">Separation of Concerns: bawat layer ay may iisang tanong na sinasagot. Kaya kapag may mali, alam mo kung aling layer ang titingnan.</p>
+        <div class="tbl"><table data-searchable>
+          <thead><tr><th>Layer</th><th>Tanong na sinasagot</th><th>Halimbawa</th></tr></thead>
+          <tbody id="layers"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- DICTIONARY -->
+    <section class="panel" id="p-dict" data-tab="dict" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Diksyunaryo</div>
+        <h2>Laravel at React Terms</h2>
+        <p>Mga salitang makikita mo sa code. Gamitin ang search box sa itaas para mabilis mahanap.</p>
+      </div>
+      <h3 style="font-size:20px;text-transform:uppercase"><span class="tag t-be">Backend</span> Laravel / PHP</h3>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Termino</th><th>Ibig sabihin</th><th>Halimbawa / Saan</th></tr></thead>
+        <tbody id="dict-be"></tbody>
+      </table></div>
+      <h3 style="font-size:20px;text-transform:uppercase"><span class="tag t-fe">Frontend</span> React / Inertia / JSX</h3>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Termino</th><th>Ibig sabihin</th><th>Halimbawa / Saan</th></tr></thead>
+        <tbody id="dict-fe"></tbody>
+      </table></div>
+    </section>
+
+    <!-- 3 TYPES OVERVIEW -->
+    <section class="panel" id="p-errors" data-tab="errors" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Ang 3 klase</div>
+        <h2>Anong Klase ng Error Ito?</h2>
+        <p>Unang tanong lagi: <b>may error message ba?</b> Doon mo malalaman kung anong klase.</p>
+      </div>
+      <div class="types">
+        <div class="type" style="--c:var(--syn)">
+          <h3>Syntax Error</h3>
+          <dl>
+            <dt>Ano ito</dt><dd>Mali ang <b>pagkakasulat</b> (grammar ng code). Kulang ang <code>;</code>, <code>}</code>, <code>$</code>…</dd>
+            <dt>Kailan lumalabas</dt><dd>Agad, bago pa tumakbo ang code.</dd>
+            <dt>May message?</dt><dd><b>Oo</b>, may line number.</dd>
+            <dt>Hirap</dt><dd><div class="meter"><i class="on"></i><i></i><i></i></div></dd>
+          </dl>
+        </div>
+        <div class="type" style="--c:var(--run)">
+          <h3>Runtime Error</h3>
+          <dl>
+            <dt>Ano ito</dt><dd>Tama ang sulat pero <b>nag-crash habang tumatakbo</b>. Hal. ginamit ang <code>null</code>.</dd>
+            <dt>Kailan lumalabas</dt><dd>Kapag naabot ang linyang may problema.</dd>
+            <dt>May message?</dt><dd><b>Oo</b>, may line number at stack trace.</dd>
+            <dt>Hirap</dt><dd><div class="meter"><i class="on"></i><i class="on"></i><i></i></div></dd>
+          </dl>
+        </div>
+        <div class="type" style="--c:var(--log)">
+          <h3>Logic Error</h3>
+          <dl>
+            <dt>Ano ito</dt><dd>Tumatakbo, walang error, pero <b>mali ang resulta</b>. Hal. <code>&amp;&amp;</code> naging <code>||</code>.</dd>
+            <dt>Kailan lumalabas</dt><dd>Kapag tiningnan mo ang data o output.</dd>
+            <dt>May message?</dt><dd><b>Wala.</b> Ikaw ang huhuli.</dd>
+            <dt>Hirap</dt><dd><div class="meter"><i class="on"></i><i class="on"></i><i class="on"></i></div></dd>
+          </dl>
+        </div>
+      </div>
+      <div class="box decide">
+        <h3>Checklist kapag pinag-debug ka</h3>
+        <div class="row"><span class="tag t-syn">1</span><div><span class="q">May salitang "syntax", "unexpected", "parse"?</span> → <b>Syntax.</b> Pumunta sa line number, at tingnan din ang linya sa <b>itaas</b> nito.</div></div>
+        <div class="row"><span class="tag t-run">2</span><div><span class="q">May "undefined", "null", "not found", "SQLSTATE", "TypeError", o 403/404/500?</span> → <b>Runtime.</b> Basahin ang unang file na nasa <code>app/</code> o <code>resources/js/</code> sa stack trace.</div></div>
+        <div class="row"><span class="tag t-log">3</span><div><span class="q">Walang error pero mali ang lumabas?</span> → <b>Logic.</b> Ihambing ang <i>dapat</i> vs <i>nangyari</i>, hanapin ang <code>if</code> / kondisyon na nagpasya.</div></div>
+        <div class="row"><span class="tag t-db">4</span><div><span class="q">Ano ang binago?</span> Patakbuhin ang <code>git diff</code>. Ipapakita nito ang eksaktong linyang binago o binura.</div></div>
+      </div>
+    </section>
+
+    <!-- SYNTAX -->
+    <section class="panel" id="p-syntax" data-tab="syntax" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow"><span class="tag t-syn">Syntax</span></div>
+        <h2>Syntax Errors</h2>
+        <p>Mali ang pagkakasulat. Madalas ang tunay na mali ay <b>isang linya bago</b> ang sinabing line number.</p>
+      </div>
+      <div class="grid2">
+        <div class="box"><h3><span class="tag t-be">Backend</span> Saan lalabas (PHP)</h3>
+          <ul class="plain"><li>Pulang Laravel page: <span class="msg">ParseError: syntax error, unexpected …</span></li><li>Check ng isang file: <code>php -l app/Http/Controllers/Employee/LeaveRequestController.php</code></li></ul></div>
+        <div class="box"><h3><span class="tag t-fe">Frontend</span> Saan lalabas (JSX)</h3>
+          <ul class="plain"><li>Terminal ng <code>npm run dev</code> o overlay sa browser: <span class="msg">[plugin:vite:react-babel] Unexpected token (52:8)</span></li><li>Check ng lahat: <code>npm run build</code></li></ul></div>
+      </div>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Saan</th><th>Ano ang nawala / nabago</th><th>Mali → Tama</th><th>Error na lalabas</th></tr></thead>
+        <tbody id="syn"></tbody>
+      </table></div>
+    </section>
+
+    <!-- RUNTIME -->
+    <section class="panel" id="p-runtime" data-tab="runtime" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow"><span class="tag t-run">Runtime</span></div>
+        <h2>Runtime Errors</h2>
+        <p>Tama ang sulat pero nag-crash habang tumatakbo. Basahin ang <b>unang linya</b> ng message, tapos ang <b>unang file na sa iyo</b> (nasa <code>app/</code> o <code>resources/js/</code>) sa stack trace.</p>
+      </div>
+      <div class="box">
+        <h3>Network tab (F12 → Network): ano ang ibig sabihin ng status code</h3>
+        <div class="tbl"><table data-searchable>
+          <thead><tr><th>Code</th><th>Ibig sabihin</th><th>Titingnan</th></tr></thead>
+          <tbody id="http"></tbody>
+        </table></div>
+      </div>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Saan</th><th>Error message</th><th>Ibig sabihin</th><th>Sanhi / saan titingin</th></tr></thead>
+        <tbody id="run"></tbody>
+      </table></div>
+    </section>
+
+    <!-- LOGIC -->
+    <section class="panel" id="p-logic" data-tab="logic" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow"><span class="tag t-log">Logic</span></div>
+        <h2>Logic Errors</h2>
+        <p>Walang error message. Tanungin mo ang sarili: <b>"Ano ang dapat mangyari, at ano ang nangyari?"</b> Tapos hanapin ang linya na gumagawa ng desisyong iyon.</p>
+      </div>
+      <div class="box decide">
+        <h3>Paano hanapin (5 hakbang)</h3>
+        <div class="row"><span class="tag t-log">1</span><div>Alamin ang <b>inaasahan</b>. Hal. "Dapat <i>Pending approval</i>."</div></div>
+        <div class="row"><span class="tag t-log">2</span><div>Hanapin kung saan ito napagpapasyahan. I-search ang salita, hal. <code>NeedsVerification</code>.</div></div>
+        <div class="row"><span class="tag t-log">3</span><div>Ilagay ang <code>dd($needsVerification, $details, $proof);</code> bago ang desisyon at subukan ulit.</div></div>
+        <div class="row"><span class="tag t-log">4</span><div>Suriin ang mga operator: <code>&amp;&amp;</code> / <code>||</code>, <code>!</code>, <code>===</code> / <code>!==</code>, <code>&lt;</code> / <code>&gt;=</code>, ternary <code>? :</code>.</div></div>
+        <div class="row"><span class="tag t-log">5</span><div>Patakbuhin ang tests: <code>php artisan test --filter=LeaveRequest</code>. Ang babagsak na test ang magsasabi kung ano ang inaasahan.</div></div>
+      </div>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Saan</th><th>Ano ang nabago</th><th>Tama → Binagong mali</th><th>Epekto</th></tr></thead>
+        <tbody id="log"></tbody>
+      </table></div>
+    </section>
+
+    <!-- WHERE -->
+    <section class="panel" id="p-where" data-tab="where" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Mabilisang hanap</div>
+        <h2>Saan Ako Titingin?</h2>
+        <p>Hanapin ang sintomas, tapos buksan ang file sa kanan.</p>
+      </div>
+      <div class="tbl"><table data-searchable>
+        <thead><tr><th>Sintomas</th><th>Klase</th><th>Unang titingnan</th></tr></thead>
+        <tbody id="where"></tbody>
+      </table></div>
+      <div class="box">
+        <h3>Mga command</h3>
+        <div class="tbl"><table data-searchable>
+          <thead><tr><th>Command</th><th>Para saan</th></tr></thead>
+          <tbody id="cmds"></tbody>
+        </table></div>
+        <p style="margin:12px 0 0;color:var(--muted)">Tandaan: alisin ang <code>dd()</code> at <code>console.log()</code> pagkatapos mag-debug.</p>
+      </div>
+    </section>
+
+    <!-- PRACTICE -->
+    <section class="panel" id="p-practice" data-tab="practice" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div class="eyebrow">Subukan mo</div>
+        <h2>Practice</h2>
+        <p>Una, ang quiz: basahin ang sitwasyon at piliin kung anong klase ng error. Pagkatapos, ang hands-on: sirain ang code nang sadya at hanapin gamit ang guide.</p>
+      </div>
+      <div class="flex" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+        <div class="score" id="score">Score: 0 / 0</div>
+        <button type="button" class="btn" id="resetQuiz">Ulitin ang quiz</button>
+      </div>
+      <div class="quiz" id="quiz"></div>
+      <div class="box">
+        <h3>Hands-on (sa sarili mong branch)</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>Klase</th><th>Gawin ito</th><th>Ano ang dapat mong makita</th></tr></thead>
+          <tbody id="hands"></tbody>
+        </table></div>
+        <p style="margin:12px 0 0">Ibalik lahat gamit ang <code>git checkout -- .</code> pagkatapos.</p>
+      </div>
+    </section>
+
+    <div class="empty" id="noResults" hidden>Walang tumugma sa hinanap mo. Subukan ang ibang salita, hal. "null", "route", o "trait".</div>
+  </div>
+</main>
+
+<footer><div class="wrap">Batay sa code ng ARKA (branch na ito). Mas mahabang bersyon: <code>docs/DEBUG_STUDY_GUIDE.md</code>. Kasaysayan ng mga ayos: <code>docs/arka_system_fix_log.md</code>.</div></footer>
+
+<script>
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// `text` → <code>text</code>, everything else escaped.
+const md = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+const TAG = { fe: '<span class="tag t-fe">Frontend</span>', be: '<span class="tag t-be">Backend</span>', db: '<span class="tag t-db">Database</span>', tb: '<span class="tag t-db">Tulay</span>', test: '<span class="tag t-db">Testing</span>',
+  syn: '<span class="tag t-syn">Syntax</span>', run: '<span class="tag t-run">Runtime</span>', log: '<span class="tag t-log">Logic</span>' };
+const tags = (k) => k.split(' ').map((x) => TAG[x]).join(' ');
+const fill = (id, rows, fn) => { document.getElementById(id).innerHTML = rows.map(fn).join(''); };
+
+const TABS = [
+  ['mapa', 'Mapa', 'var(--teal)'], ['flow', 'Flow', 'var(--teal)'], ['oop', 'OOP', 'var(--gold)'], ['dict', 'Diksyunaryo', 'var(--gold)'],
+  ['errors', '3 Klase', 'var(--muted)'], ['syntax', 'Syntax', 'var(--syn)'], ['runtime', 'Runtime', 'var(--run)'], ['logic', 'Logic', 'var(--log)'],
+  ['where', 'Saan Titingin', 'var(--muted)'], ['practice', 'Practice', 'var(--ok)'],
+];
+
+const FOLDERS = [
+  ['resources/js/Pages/', 'fe', 'Ang mga buong page. Hal. `Employee/Leave.jsx`. Isang file = isang screen.'],
+  ['resources/js/Components/', 'fe', 'Maliliit na bahagi na paulit-ulit gamitin: button, table, dialog, `FilePicker`.'],
+  ['resources/js/Layouts/', 'fe', 'Balangkas ng page (sidebar, header). Hal. `AppLayout.jsx`.'],
+  ['resources/js/lib/', 'fe', 'Helper functions. Hal. `format.js` para sa date at pera.'],
+  ['resources/js/app.jsx', 'fe', 'Simula ng React. Dito hinahanap ang page sa `./Pages/{name}.jsx`.'],
+  ['resources/css/app.css', 'fe', 'Styles (Tailwind) at kulay ng light/dark mode.'],
+  ['resources/views/app.blade.php', 'tb', 'Ang iisang HTML shell kung saan ikinakabit ang React.'],
+  ['routes/*.php', 'be', 'Listahan ng URL at kung aling controller ang tatawagin. `web.php`, `employee.php`, `admin.php`, `auth.php`.'],
+  ['bootstrap/app.php', 'be', 'Setup: global middleware at mga alias (`role`, `view`, `security.confirm`).'],
+  ['app/Http/Middleware/', 'be', 'Bantay bago pumasok sa controller: naka-login ba, tamang role ba, active ba ang account.'],
+  ['app/Http/Controllers/', 'be', 'Tumatanggap ng request, nagva-validate, tumatawag sa Action, nagbabalik ng page.'],
+  ['app/Http/Requests/', 'be', 'Validation rules na nasa sariling class (Form Request).'],
+  ['app/Actions/', 'be', 'Isang gawain o business rule. Hal. `Leave/SubmitLeaveRequest.php`.'],
+  ['app/Services/', 'be', 'Mas malaking logic at computation: payroll, attendance, reports, dashboard.'],
+  ['app/Models/', 'be', 'Katumbas ng table sa database (Eloquent). Hal. `LeaveRequest` ↔ `leave_requests`.'],
+  ['app/Models/Concerns/', 'be', 'Traits na shared ng maraming model. Hal. `BelongsToContractor`.'],
+  ['app/Enums/', 'be', 'Fixed na pagpipilian: status, role. Hal. `LeaveRequestStatus`, `UserRole`.'],
+  ['app/Notifications/', 'be', 'Mga notification at email.'],
+  ['app/Console/Commands/', 'be', 'Naka-schedule na tasks. Hal. `StopFinishedShifts`.'],
+  ['database/migrations/', 'db', 'Gumagawa ng tables at columns.'],
+  ['database/seeders/, factories/', 'db', 'Sample data para sa testing at demo.'],
+  ['tests/Feature/', 'test', 'Automated tests. Hal. `Employee/LeaveRequestTest.php`.'],
+  ['storage/logs/laravel.log', 'be', '**Dito lumalabas ang backend errors.**'],
+];
+fill('folders', FOLDERS, ([f, t, d]) => `<tr><td class="mono" style="white-space:nowrap">${esc(f)}</td><td>${tags(t)}</td><td>${md(d)}</td></tr>`);
+
+const FLOWS = {
+  open: [
+    ['fe', 'Pumunta ang user sa /employee/leave', 'Nag-click sa "Leave" sa sidebar. Nagpadala ang browser ng GET request.', 'browser', null],
+    ['be', 'Hinanap ng Laravel ang route', 'Nasa loob ng `prefix(\'leave\')`. Ang `GET /` ay papunta sa `index`.', 'routes/employee.php:46-50',
+      "Route::prefix('leave')->name('leave.')->controller(LeaveRequestController::class)->group(function () {\n    Route::get('/', 'index')->name('index');\n    Route::post('/', 'store')->name('store');\n    Route::post('{leave}/cancel', 'cancel')->name('cancel');\n});"],
+    ['be', 'Dumaan sa middleware (bantay)', 'Naka-login ba? Verified ba? Contractor o Admin ba? Kapag hindi, 403 o redirect sa login.', 'routes/employee.php:18 · app/Http/Middleware/EnsureUserHasRole.php',
+      "abort_unless($request->user()?->hasRole(...$allowed), Response::HTTP_FORBIDDEN);"],
+    ['be', 'Dumaan sa global middleware', 'Active ba ang account? Napalitan na ba ang password? Kumpleto ba ang profile?', 'bootstrap/app.php (withMiddleware)', null],
+    ['be', 'Tinawag ang LeaveRequestController@index', 'Kinuha ang leave requests ng user sa database, kasama ang filter (from, to, status).', 'app/Http/Controllers/Employee/LeaveRequestController.php:23',
+      "$requests = $request->user()->leaveRequests()\n    ->with('leaveType:id,leave_type_name,is_paid')\n    ->orderByDesc('created_at')\n    ->get()"],
+    ['db', 'Nagpatakbo ng SQL query', 'Ang `leaveRequests()` ay relationship sa `User` model (hasMany). Nagiging `SELECT * FROM leave_requests WHERE contractor_id = ?`.', 'app/Models/User.php:330',
+      "public function leaveRequests(): HasMany\n{\n    return $this->hasMany(LeaveRequest::class, 'contractor_id');\n}"],
+    ['be', 'Ipinasa ang data sa page', 'Ginawang array ang bawat leave at ipinadala bilang props.', 'LeaveRequestController.php:54',
+      "return Inertia::render('Employee/Leave', [\n    'requests' => $requests->all(),\n    'filters' => [...],\n    'reasons' => self::REASONS,\n    'statuses' => LeaveRequestStatus::options(),\n]);"],
+    ['be', 'Nagdagdag ng shared props', 'Kasama sa bawat page: `auth.user`, `flash`, `navigation`, `notifications`.', 'app/Http/Middleware/HandleInertiaRequests.php:34', null],
+    ['fe', 'Hinanap ang JSX file', 'Ang `\'Employee/Leave\'` ay nagiging `./Pages/Employee/Leave.jsx`.', 'resources/js/app.jsx',
+      "resolve: (name) => resolvePageComponent(`./Pages/${name}.jsx`, import.meta.glob('./Pages/**/*.jsx'))"],
+    ['fe', 'Ni-render ang page', 'Ang props mula sa step 7 ay pumasok dito. Magkapareho dapat ang pangalan!', 'resources/js/Pages/Employee/Leave.jsx:116',
+      "export default function Leave({ requests, filters, reasons, statuses }) {"],
+  ],
+  submit: [
+    ['fe', 'Nag-fill ang user ng form', 'Naka-imbak ang mga value sa `useForm`. Bawat field ay may `setData`.', 'resources/js/Pages/Employee/Leave.jsx:40',
+      "const { data, setData, post, processing, errors, reset } = useForm({\n    paid: true, start_date: '', end_date: '', reason: '',\n    client_informed: false, proof: null, notes: '',\n});"],
+    ['fe', 'Pinindot ang Submit', 'Tumakbo ang `submit` at nagpadala ng POST.', 'Leave.jsx:50-65',
+      "<form onSubmit={submit}>\n...\nconst submit = (e) => {\n    e.preventDefault();\n    post(route('employee.leave.store'), { forceFormData: true, ... });\n};"],
+    ['fe', 'Ginawang URL ang route name', '`route(\'employee.leave.store\')` → `/employee/leave`. Galing sa `->name(\'store\')` sa routes.', 'routes/employee.php:48', null],
+    ['be', 'Tinawag ang LeaveRequestController@store', 'Dumaan muna sa parehong middleware ng flow A.', 'LeaveRequestController.php:66',
+      "public function store(Request $request, SubmitLeaveRequest $submit): RedirectResponse"],
+    ['be', 'Validation', 'Sinusuri ang input. Kapag mali (hal. walang start_date), **babalik agad** sa page na may `errors`. Hindi na tutuloy sa susunod na step.', 'LeaveRequestController.php:68',
+      "$validated = $request->validate([\n    'paid' => ['required', 'boolean'],\n    'start_date' => ['required', 'date'],\n    'end_date' => ['required', 'date', 'after_or_equal:start_date'],\n    'reason' => ['required', 'string', Rule::in(self::REASONS)],\n    ...\n]);"],
+    ['be', 'Ipinasa sa Action', 'Ang controller ay hindi nag-sa-save mismo. Ipinapasa sa `SubmitLeaveRequest`.', 'LeaveRequestController.php:81',
+      "$leave = $submit->handle($request->user(), [...], $request->file('proof'));"],
+    ['be', 'Business rule', 'Kapag "client informed" pero walang proof, ang status ay **Needs Verification**. Kung hindi, **Pending Approval**.', 'app/Actions/Leave/SubmitLeaveRequest.php:31',
+      "$needsVerification = $details['client_informed'] && $proof === null;"],
+    ['db', 'Nag-save sa database', 'Ginamit ang relationship para kusang ma-set ang `contractor_id`.', 'SubmitLeaveRequest.php:33',
+      "$leave = $employee->leaveRequests()->create([\n    'leave_type_id' => $this->leaveType($details['paid'])->id,\n    'start_date' => $details['start_date'],\n    ...\n    'status' => $needsVerification ? LeaveRequestStatus::NeedsVerification : LeaveRequestStatus::PendingApproval,\n]);"],
+    ['be', 'Tumakbo ang trait hook', 'Bago mag-save, sinisigurado ng `BelongsToContractor` na may `contractors` row.', 'app/Models/Concerns/BelongsToContractor.php',
+      "static::saving(function ($model) {\n    if ($model->contractor_id !== null && $model->isDirty('contractor_id')) {\n        Contractor::ensureFor((int) $model->contractor_id);\n    }\n});"],
+    ['be', 'Activity log at notification', 'Naitala sa activity log, at na-notify ang lahat ng Super Admin.', 'SubmitLeaveRequest.php:44-45 · app/Services/Notifier.php',
+      "$this->activity->log('requests', 'Submitted leave request', $leave, ...);\n$this->notifier->superAdmins(new LeaveRequestSubmitted($leave));"],
+    ['be', 'Bumalik sa page', 'May kasamang flash message.', 'LeaveRequestController.php:90',
+      "return back()->with('success', 'Leave request submitted.');"],
+    ['fe', 'Lumabas ang toast o ang errors', 'Binasa ng `FlashToast` ang `flash.success`. Kapag may validation error, lumalabas ito sa ilalim ng field.', 'resources/js/Components/Console/Flash.jsx · Leave.jsx',
+      "const { flash } = usePage().props;          // Flash.jsx\n<Field ... error={errors.start_date} />    // Leave.jsx"],
+  ],
+};
+function renderFlow(which) {
+  document.querySelectorAll('[data-flow]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.flow === which)));
+  fill('steps', FLOWS[which], ([t, title, desc, file, code]) => `<li><div class="step" data-search>
+    <div class="step-top">${tags(t)}<strong>${esc(title)}</strong></div>
+    <p>${md(desc)}</p><div class="file">${esc(file)}</div>
+    ${code ? `<details><summary>Ipakita ang code</summary><pre>${esc(code)}</pre></details>` : ''}
+  </div></li>`);
+}
+document.querySelectorAll('[data-flow]').forEach((b) => b.addEventListener('click', () => { renderFlow(b.dataset.flow); applySearch(); }));
+renderFlow('open');
+
+const OOP = [
+  ['Class', 'Blueprint o hulmahan ng isang bagay.', '`class SubmitLeaveRequest` sa `app/Actions/Leave/SubmitLeaveRequest.php`'],
+  ['Object / Instance', 'Ang aktwal na bagay na ginawa mula sa class.', '`$leave` (isang `LeaveRequest`), `$request->user()` (isang `User`)'],
+  ['Property', 'Variable na nasa loob ng class.', '`private readonly ActivityLogger $activity`'],
+  ['Method', 'Function na nasa loob ng class.', '`handle()`, `cancel()`, `leaveType()`'],
+  ['Constructor', 'Method na unang tumatakbo kapag ginawa ang object.', '`public function __construct(private readonly ActivityLogger $activity, private readonly Notifier $notifier) {}`'],
+  ['Encapsulation', 'Itinatago ang loob. Ang `private` ay bawal gamitin sa labas ng class.', '`private function leaveType()` sa `SubmitLeaveRequest`'],
+  ['Access modifiers', '`public` = kahit sino · `protected` = class at anak nito · `private` = class lang.', '`protected function casts()` sa bawat model'],
+  ['Inheritance (extends)', 'Anak na class na nagmamana sa magulang na class.', '`LeaveRequest extends Model`, `User extends Authenticatable`, `LeaveRequestController extends Controller`'],
+  ['Interface (implements)', 'Kontrata: listahan ng methods na DAPAT meron ang class.', '`interface Report` → `class LeaveReport implements Report`; `interface DashboardWidget` → `AlertsWidget implements DashboardWidget`'],
+  ['Polymorphism', 'Iba-ibang class, parehong pangalan ng method, iba-ibang laman.', 'Lahat ng `*Report` ay may `title()`. Ang `LeaveReport` ay nagbabalik ng `\'Leave Summary\'`.'],
+  ['Abstraction', 'Ginagamit mo nang hindi kailangang alam ang loob.', 'Tinatawag ng controller ang `$submit->handle(...)` nang hindi alam kung paano ito nag-save.'],
+  ['Trait (use)', 'Piraso ng code na isinasama sa maraming class.', '`use BelongsToContractor` sa `LeaveRequest` (`app/Models/Concerns/`)'],
+  ['Enum', 'Fixed na listahan ng pagpipilian, hindi basta string.', '`enum LeaveRequestStatus` (`PendingApproval`, `Approved`…), `enum UserRole`'],
+  ['Static method', 'Tinatawag sa class mismo gamit ang `::`, hindi sa object.', '`LeaveType::create(...)`, `LeaveRequestStatus::options()`, `Contractor::ensureFor($id)`'],
+  ['Constant', 'Value na hindi nagbabago.', '`LeaveRequestController::REASONS`, `User::INVITATION_VALID_DAYS`'],
+  ['Dependency Injection', 'Hindi mo ginagawa ang object. Si Laravel ang nagbibigay.', '`store(Request $request, SubmitLeaveRequest $submit)` — kusang ginawa ang `$submit`'],
+  ['Type hint / Return type', 'Sinasabi kung anong uri ang papasok at lalabas.', '`handle(User $employee, ...): LeaveRequest`'],
+  ['Nullable (?Type)', 'Pwedeng `null` ang value.', '`?UploadedFile $proof = null`'],
+  ['Null-safe (?->)', 'Hindi mag-e-error kahit `null`; magbabalik lang ng `null`.', '`$leave->leaveType?->is_paid`, `$proof?->store(...)`'],
+  ['$this', '"Ako mismong object na ito."', '`$this->activity->log(...)`'],
+  ['self::', '"Ang class na ito" (para sa static at constant).', '`self::REASONS`, `self::PendingApproval`'],
+  ['-> vs ::', '`->` para sa object · `::` para sa class, static at enum.', '`$leave->status` vs `LeaveRequestStatus::Approved`'],
+  ['Namespace', 'Address ng class para walang banggaan ng pangalan.', '`namespace App\\Actions\\Leave;`'],
+  ['use (sa itaas ng file)', 'Import ng class mula sa ibang namespace.', '`use App\\Models\\LeaveRequest;`'],
+];
+fill('oop', OOP, ([t, d, e]) => `<tr><td class="term">${esc(t)}</td><td>${md(d)}</td><td>${md(e)}</td></tr>`);
+
+const LAYERS = [
+  ['Route', 'Anong URL?', '`routes/employee.php`'],
+  ['Middleware', 'Pwede ka bang pumasok?', '`EnsureUserHasRole`'],
+  ['Controller', 'Ano ang hiningi, at tama ba ang input?', '`LeaveRequestController`'],
+  ['Action', 'Ano ang business rule?', '`SubmitLeaveRequest`'],
+  ['Service', 'Paano kalkulahin?', '`PayrollCalculator`, `AttendanceCalculator`'],
+  ['Model', 'Paano i-save at kunin sa DB?', '`LeaveRequest`, `User`'],
+  ['Enum', 'Ano ang pwedeng values?', '`LeaveRequestStatus`'],
+  ['Page / Component', 'Paano ipapakita?', '`Leave.jsx`'],
+];
+fill('layers', LAYERS, ([l, q, e]) => `<tr><td class="term">${esc(l)}</td><td>${esc(q)}</td><td>${md(e)}</td></tr>`);
+
+const DICT_BE = [
+  ['Route', 'Pagkonekta ng URL sa controller method.', '`Route::post(\'/\', \'store\')->name(\'store\')`'],
+  ['Route name', 'Palayaw ng route para tawagin sa JSX.', '`employee.leave.store`'],
+  ['Route model binding', '`{leave}` sa URL ay kusang nagiging `LeaveRequest $leave`.', '`Route::post(\'{leave}/cancel\', ...)` + `cancel(..., LeaveRequest $leave)`'],
+  ['Middleware', 'Pansala bago ang controller.', '`auth`, `role:...`, `view:employee`'],
+  ['Controller', 'Tumatanggap ng request.', '`app/Http/Controllers/`'],
+  ['$request->validate()', 'Sinusuri ang input. Kapag mali, may `errors` pabalik sa page.', '`LeaveRequestController.php:68`'],
+  ['Form Request', 'Validation na nasa sariling class.', '`app/Http/Requests/`'],
+  ['Action', 'Isang business task.', '`app/Actions/`'],
+  ['Service', 'Mas malaking logic.', '`app/Services/`'],
+  ['Model (Eloquent)', 'Class na katumbas ng table.', '`LeaveRequest` ↔ table `leave_requests`'],
+  ['#[Fillable([...])]', 'Mga column na pwedeng i-save gamit ang `create()`.', 'Itaas ng bawat model'],
+  ['casts()', 'Pag-convert ng column (date, boolean, enum).', '`\'status\' => LeaveRequestStatus::class`'],
+  ['Relationship', 'Koneksyon ng tables.', '`hasMany`: `User::leaveRequests()` · `belongsTo`: `LeaveRequest::leaveType()`'],
+  ['Scope', 'Reusable na filter sa query.', '`#[Scope] pending()` sa `LeaveRequest`; global scope `home_office` sa trait'],
+  ['Migration', 'Gumagawa ng table at column.', '`database/migrations/`'],
+  ['Inertia::render()', 'Ipadala ang page at props sa React.', 'Dulo ng `index()`'],
+  ['back()->with()', 'Bumalik sa page na may flash message.', 'Dulo ng `store()`'],
+  ['abort_unless()', 'Itigil kapag hindi pasado ang kondisyon.', '`abort_unless($leave->employee_id === $request->user()->id, 404)`'],
+  ['Notification', 'Mensahe o email sa user.', '`app/Notifications/`'],
+  ['dd($var)', 'Dump and die: ipakita ang laman at itigil.', 'Pansamantala lang sa debug'],
+  ['Log::info($var)', 'Isulat sa log nang hindi tumitigil.', '`storage/logs/laravel.log`'],
+];
+const DICT_FE = [
+  ['Component', 'Function na nagbabalik ng JSX (UI).', '`function LeaveForm(...)`, `export default function Leave(...)`'],
+  ['Props', 'Data na ipinasa sa component. Para sa Pages, galing ito sa PHP.', '`Leave({ requests, filters, reasons, statuses })`'],
+  ['State (useState)', 'Data na nagbabago sa page.', '`const [formOpen, setFormOpen] = useState(...)`'],
+  ['useForm', 'Inertia helper para sa form: data, errors, processing.', '`Leave.jsx:40`'],
+  ['setData()', 'Palitan ang isang field sa form.', '`onChange={(e) => setData(\'start_date\', e.target.value)}`'],
+  ['post(route(...))', 'Ipadala ang form sa backend.', '`Leave.jsx:52`'],
+  ['router.get / router.post', 'Mag-request nang walang form.', '`router.post(route(\'employee.leave.cancel\', id))`'],
+  ['route()', 'Gawing URL ang route name (Ziggy).', '`route(\'employee.leave.store\')` → `/employee/leave`'],
+  ['errors.field', 'Validation error galing sa `validate()`.', '`error={errors.start_date}`'],
+  ['usePage().props', 'Kunin ang shared props (auth, flash).', '`Flash.jsx`'],
+  ['import / export default', 'Pagkuha at pagbigay ng component sa ibang file.', 'Itaas at baba ng bawat `.jsx`'],
+  ['@/', 'Shortcut para sa `resources/js/`.', '`import AppLayout from \'@/Layouts/AppLayout\'`'],
+  ['className', 'Ang `class` ng HTML (Tailwind styles).', 'Lahat ng JSX'],
+  ['.map()', 'Ulitin para sa bawat item ng listahan.', '`reasons.map((reason) => ...)`'],
+  ['console.log(x)', 'Ipakita ang laman sa browser console (F12).', 'Debug sa frontend'],
+];
+const dictRow = ([t, d, e]) => `<tr><td class="term mono">${esc(t)}</td><td>${md(d)}</td><td>${md(e)}</td></tr>`;
+fill('dict-be', DICT_BE, dictRow);
+fill('dict-fe', DICT_FE, dictRow);
+
+const pair = (bad, good) => `<div class="codepair"><div class="x">${esc(bad)}</div><div class="o">${esc(good)}</div></div>`;
+const SYN = [
+  ['be', 'Kulang ang ;', "$leave = $submit->handle(...)", "$leave = $submit->handle(...);", 'syntax error, unexpected token "return"'],
+  ['be', 'Kulang ang $ sa variable', "validated['paid']", "$validated['paid']", 'syntax error, unexpected token "["'],
+  ['be', 'Kulang ang } o )', 'function cancel(...) { ...', 'function cancel(...) { ... }', 'syntax error, unexpected end of file'],
+  ['be', 'Kulang ang , sa array', "'paid' => true 'reason' => ...", "'paid' => true, 'reason' => ...", 'syntax error, unexpected single-quoted string'],
+  ['be', 'Mali ang => sa array', "'paid' = true", "'paid' => true", 'syntax error, unexpected token "="'],
+  ['be', 'Walang closing quote', "'Leave request submitted.)", "'Leave request submitted.')", 'syntax error, unexpected end of file'],
+  ['be', '-> naging .', '$request.user()', '$request->user()', 'syntax error / Call to undefined function user()'],
+  ['be', 'Mali ang spelling ng keyword', 'pubic function store(...)', 'public function store(...)', 'syntax error, unexpected identifier "function"'],
+  ['fe', 'Hindi naisara ang tag', '<div> ... (walang </div>)', '<div> ... </div>', 'Expected corresponding JSX closing tag for <div>'],
+  ['fe', 'Kulang ang { } sa JS value', 'value=data.reason', 'value={data.reason}', 'Unexpected token'],
+  ['fe', 'Dalawang root element', 'return (<A /><B />)', 'return (<><A /><B /></>)', 'Adjacent JSX elements must be wrapped in an enclosing tag'],
+  ['fe', 'Kulang ang ) sa .map(', 'options.map((x) => (<li>{x}</li>)', 'options.map((x) => (<li>{x}</li>))', 'Unexpected token'],
+  ['fe', 'Mali ang import path', "from '@/Components/Console/Feild'", "from '@/Components/Console/Field'", 'Failed to resolve import "@/Components/Console/Feild"'],
+];
+fill('syn', SYN, ([t, what, bad, good, err]) => `<tr><td>${tags(t)}</td><td><b>${esc(what)}</b></td><td>${pair(bad, good)}</td><td class="msg">${esc(err)}</td></tr>`);
+
+const HTTP = [
+  ['403', 'Forbidden: bawal ka rito.', 'Middleware `role:` sa routes, `EnsureUserHasRole.php`'],
+  ['404', 'Walang route, o walang record, o hindi sa iyo.', 'URL at `routes/*.php`, route model binding, `abort_unless(..., 404)`'],
+  ['419', 'Page expired: luma na ang session o CSRF token.', 'I-refresh ang page at mag-login ulit'],
+  ['422', 'Validation error (karaniwang hindi crash).', '`$request->validate([...])` sa controller'],
+  ['500', 'Nag-crash ang backend.', '`storage/logs/laravel.log`, pulang Laravel page'],
+];
+fill('http', HTTP, ([c, d, w]) => `<tr><td class="term mono">${c}</td><td>${esc(d)}</td><td>${md(w)}</td></tr>`);
+
+const RUN = [
+  ['be', 'Call to undefined method App\\Models\\User::leaveRequest()', 'Walang ganyang method.', 'Mali ang spelling o binura ang relationship. Tingnan `app/Models/User.php` (`leaveRequests`).'],
+  ['be', 'Call to a member function format() on null', 'Ginamit ang `->` sa `null`.', 'Walang laman ang column (hal. `start_date`), o nawala sa `casts()`.'],
+  ['be', 'Attempt to read property "is_paid" on null', 'Walang related record.', '`$leave->leaveType->is_paid`: gamitin ang `?->`, o walang `leave_type_id`.'],
+  ['be', 'Undefined variable $validated', 'Ginamit bago ginawa, o mali ang pangalan.', 'Tingnan ang itaas ng method.'],
+  ['be', 'Undefined array key "paid"', 'Walang ganyang key sa array.', 'Pangalan sa `validate()` vs ginamit sa code.'],
+  ['be', 'Class "App\\Models\\LeaveReqest" not found', 'Mali ang pangalan o kulang ang `use`.', 'Itaas ng file (`use ...;`) at spelling.'],
+  ['db', 'SQLSTATE[42S22]: Column not found: 1054 Unknown column \'employee_id\'', 'Walang ganyang column sa table.', 'Migration vs model. Tingnan `docs/arka_system_fix_log.md` §1.'],
+  ['db', 'SQLSTATE[42S02]: Base table or view not found', 'Walang table.', 'Hindi pa na-migrate: `php artisan migrate`.'],
+  ['db', 'SQLSTATE[23000]: Integrity constraint violation', 'Duplicate, maling foreign key, o NOT NULL na walang laman.', 'Kulang ang value o maling id sa `create()`.'],
+  ['be', 'Add [notes] to fillable property to allow mass assignment', 'Hindi pinayagan ang column sa `create()`.', 'Idagdag sa `#[Fillable([...])]` ng model.'],
+  ['be', '"approve" is not a valid backing value for enum', 'Ang value sa DB ay wala sa enum.', '`app/Enums/*.php` vs laman ng database.'],
+  ['be', 'Route [employee.leave.stor] not defined', 'Mali ang route name.', '`->name(...)` sa `routes/*.php` vs `route(\'...\')`.'],
+  ['be', 'Too few arguments to function handle()', 'Kulang ang ipinasang argument.', 'Tingnan ang signature ng method.'],
+  ['fe', 'Page not found: ./Pages/Employee/Leav.jsx', 'Mali ang pangalan sa `Inertia::render()`.', 'Dapat tugma sa file sa `resources/js/Pages/`.'],
+  ['fe', "TypeError: Cannot read properties of undefined (reading 'map')", 'Ang prop ay `undefined`.', 'Hindi ipinasa sa `Inertia::render([...])` o mali ang pangalan ng prop.'],
+  ['fe', 'TypeError: setdata is not a function', 'Tinawag ang hindi function.', 'Mali ang destructure o spelling (`setData`).'],
+  ['fe', 'ReferenceError: Field is not defined', 'Hindi na-import o na-declare.', 'Itaas ng `.jsx` (`import ...`).'],
+];
+fill('run', RUN, ([t, m, d, w]) => `<tr><td>${tags(t)}</td><td class="msg">${esc(m)}</td><td>${md(d)}</td><td>${md(w)}</td></tr>`);
+
+const LOG = [
+  ['be', '&& naging ||', "$details['client_informed'] || $proof === null", "$details['client_informed'] && $proof === null", 'Lahat ng walang proof ay "Needs Verification" kahit hindi sinabing informed.', 'SubmitLeaveRequest.php:31'],
+  ['be', '=== naging !==', '$proof !== null', '$proof === null', 'Baliktad: ang may proof pa ang na-flag.', 'SubmitLeaveRequest.php:31'],
+  ['be', '>= naging <=', "whereDate('end_date', '<=', $from)", "whereDate('end_date', '>=', $from)", 'Mali ang resulta ng date filter.', 'LeaveRequestController.php (index)'],
+  ['be', 'Nawala ang !', 'if ($leave->status->isOpen())', 'if (! $leave->status->isOpen())', 'Hindi ma-cancel ang bukas na request; ang tapos na ang pwede.', 'LeaveRequestController.php (cancel)'],
+  ['be', 'Maling enum case', 'LeaveRequestStatus::Rejected', 'LeaveRequestStatus::Cancelled', 'Ang na-withdraw ay lumalabas na "Rejected".', 'SubmitLeaveRequest.php (cancel)'],
+  ['be', 'Pinagpalit ang ternary', "$paid ? 'Unpaid leave' : 'Paid leave'", "$paid ? 'Paid leave' : 'Unpaid leave'", 'Baliktad ang leave type.', 'SubmitLeaveRequest.php (leaveType)'],
+  ['be', 'Binura ang kondisyon', '(walang abort_unless)', 'abort_unless($leave->employee_id === $request->user()->id, 404);', '**Security bug:** pwedeng i-cancel ang leave ng iba.', 'LeaveRequestController.php (cancel)'],
+  ['be', 'Maling role sa route', "'role:primary_admin'", "'role:contractor,company_admin'", 'Hindi makapasok ang tamang user, o nakakapasok ang mali.', 'routes/employee.php:18'],
+  ['be', 'Nawala ang validation rule', "'end_date' => ['required', 'date']", "'end_date' => ['required', 'date', 'after_or_equal:start_date']", 'Pwedeng mas maaga ang end kaysa start.', 'LeaveRequestController.php:68'],
+  ['be', 'Off-by-one', '$start->diffInDays($end)', '$start->diffInDays($end) + 1', 'Kulang ng isang araw ang bilang ng leave.', 'Reports / computation'],
+  ['be', 'Maling operator sa math', 'gross + deductions', 'gross - deductions', 'Maling sweldo o total.', 'app/Services/Payroll/PayrollCalculator.php'],
+  ['fe', 'Maling field sa value', 'value={data.start_date}  (sa End date)', 'value={data.end_date}', 'Parehong date ang ipinapakita sa dalawang field.', 'Leave.jsx'],
+  ['fe', 'onChange sa maling field', "setData('start_date', ...)  (sa End date)", "setData('end_date', ...)", 'Hindi nagbabago ang end date.', 'Leave.jsx'],
+  ['fe', 'Nawala ang reset()', 'onSuccess: () => {}', 'onSuccess: () => { reset(); ... }', 'Hindi nalilinis ang form pagkatapos mag-submit.', 'Leave.jsx:58'],
+];
+fill('log', LOG, ([t, what, bad, good, eff, file]) => `<tr><td>${tags(t)}</td><td><b>${esc(what)}</b><div class="mono" style="color:var(--teal);font-size:12px;margin-top:4px">${esc(file)}</div></td><td>${pair(bad, good)}</td><td>${md(eff)}</td></tr>`);
+
+const WHERE = [
+  ['Blangko ang page', 'run', 'Browser console (F12). Kung may pulang error, `resources/js/Pages/...`'],
+  ['Pulang Laravel error page', 'syn run', 'Ang file at line sa message; `storage/logs/laravel.log`'],
+  ['Vite overlay / build error', 'syn', 'Ang `.jsx` file at line na nasa message'],
+  ['404 sa pagbukas ng page', 'run', '`routes/*.php`: tama ba ang URL at prefix?'],
+  ['403 Forbidden', 'run log', 'Middleware `role:` sa `routes/*.php`, `EnsureUserHasRole.php`'],
+  ['Palaging na-re-redirect sa ibang page', 'log', '`app/Http/Middleware/`: `EnsurePasswordIsChanged`, `EnsureProfileIsCompleted`, `EnsureAccountIsActive`'],
+  ['Walang lumalabas na data sa table', 'log run', 'Controller `index()` (query at filter), global scope sa `Models/Concerns/`, pangalan ng props sa JSX'],
+  ['Hindi nagse-save', 'run log', 'Controller `store()` → `validate()`; Action `handle()`; `#[Fillable]` ng model'],
+  ['Hindi lumalabas ang validation message', 'log', '`errors.field` sa JSX vs pangalan ng field sa `validate()`'],
+  ['Mali ang status o kulay ng badge', 'log', '`app/Enums/*Status.php` (`label()`), `StatusBadge.jsx`'],
+  ['Mali ang computation (sweldo, oras)', 'log', '`app/Services/Payroll/`, `app/Services/Attendance/`'],
+  ['Walang notification', 'log', '`app/Services/Notifier.php`, `app/Notifications/`'],
+  ['Hindi lumalabas ang success toast', 'log', '`back()->with(\'success\', ...)`, `HandleInertiaRequests.php` (`flash`), `Flash.jsx`'],
+  ['Mali ang sidebar o menu', 'log', '`app/Support/Navigation.php`'],
+  ['"Column not found"', 'run', '`database/migrations/` vs model; `docs/arka_system_fix_log.md`'],
+];
+fill('where', WHERE, ([s, t, w]) => `<tr><td><b>${esc(s)}</b></td><td>${tags(t)}</td><td>${md(w)}</td></tr>`);
+
+const CMDS = [
+  ['git diff', 'Makita kung ano ang **binago** mula sa huling commit. Pinakamabilis sa debug test!'],
+  ['git status', 'Aling files ang nabago.'],
+  ['php -l app/Path/File.php', 'Check ng **syntax** ng isang PHP file.'],
+  ['npm run build', 'Lalabas ang **syntax** errors ng JSX.'],
+  ['php artisan route:list --path=leave', 'Makita ang routes, pangalan at controller.'],
+  ['php artisan test', 'Patakbuhin lahat ng tests.'],
+  ['php artisan test --filter=LeaveRequest', 'Test ng isang module lang.'],
+  ['tail -n 50 storage/logs/laravel.log', 'Huling backend errors.'],
+  ['php artisan tinker', 'Subukan ang code o query nang direkta.'],
+  ['php artisan migrate:status', 'Na-migrate na ba ang lahat ng tables.'],
+  ['dd($var);  /  console.log(var)', 'Silipin ang laman ng variable (PHP / JS).'],
+];
+fill('cmds', CMDS, ([c, d]) => `<tr><td class="cmd">${esc(c)}</td><td>${md(d)}</td></tr>`);
+
+const QUIZ = [
+  ['ParseError: syntax error, unexpected token "return"\nLeaveRequestController.php line 90', 'syn', 'May salitang "syntax error" at "unexpected". Malamang kulang ang ; sa linyang 89.'],
+  ['Na-submit ang leave na "Client informed: No" at walang proof, pero ang status ay "Needs verification". Walang error.', 'log', 'Walang error pero mali ang resulta. Tingnan ang && sa SubmitLeaveRequest.php:31; baka naging ||.'],
+  ['TypeError: Cannot read properties of undefined (reading \'length\')\nat Leave (Leave.jsx:117)', 'run', 'Nag-crash habang tumatakbo. Ang prop na requests ay undefined; baka napalitan ang pangalan sa Inertia::render().'],
+  ['Expected corresponding JSX closing tag for <div>. (88:12)', 'syn', 'Hindi naisara ang <div>. Grammar ito ng JSX, kaya syntax.'],
+  ['Call to undefined method App\\Models\\User::leaveRequest()', 'run', 'Tama ang sulat pero walang ganyang method nang tumakbo. Ang tama ay leaveRequests().'],
+  ['Nakapag-cancel ang isang contractor ng leave request ng ibang contractor. Walang error.', 'log', 'Logic (at security) bug. Nawala ang abort_unless($leave->employee_id === $request->user()->id, 404).'],
+  ['SQLSTATE[42S22]: Column not found: 1054 Unknown column \'employee_id\' in \'field list\'', 'run', 'Lumabas nang tumakbo ang query. Walang column na iyon sa table; tingnan ang migration.'],
+  ['Mas maliit ang sweldo kaysa inaasahan, eksaktong doble ng deductions ang kulang.', 'log', 'Walang error pero mali ang computation. Baka nadoble ang pagbawas sa PayrollCalculator.php.'],
+  ['syntax error, unexpected end of file\nSubmitLeaveRequest.php line 71', 'syn', 'Nasa dulo ng file ang error. Kulang ang } sa isang method o sa class.'],
+  ['403 Forbidden pagbukas ng /employee/leave gamit ang account ng contractor.', 'log', 'Tumatakbo ang lahat, pero mali ang pinapayagang role. Tingnan ang role: sa routes/employee.php:18. (Runtime-looking pero ang sanhi ay maling kondisyon.)'],
+];
+const NAME = { syn: 'Syntax', run: 'Runtime', log: 'Logic' };
+let answered = {};
+function renderQuiz() {
+  answered = {};
+  fill('quiz', QUIZ, ([s], i) => `<div class="qcard" data-search>
+    <div class="snippet">${esc(s)}</div>
+    <div class="qbtns" data-q="${i}">${['syn', 'run', 'log'].map((k) => `<button type="button" data-a="${k}">${NAME[k]}</button>`).join('')}</div>
+    <div class="qexp" hidden></div>
+  </div>`);
+  updateScore();
+}
+function updateScore() {
+  const vals = Object.values(answered);
+  document.getElementById('score').textContent = `Score: ${vals.filter(Boolean).length} / ${vals.length} (sa ${QUIZ.length})`;
+}
+document.getElementById('quiz').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const wrap = b.parentElement; const i = Number(wrap.dataset.q);
+  if (i in answered) return;
+  const [, ans, why] = QUIZ[i];
+  const ok = b.dataset.a === ans; answered[i] = ok;
+  wrap.querySelectorAll('button').forEach((x) => { if (x.dataset.a === ans) x.classList.add('right'); else if (x === b) x.classList.add('wrong'); });
+  const exp = wrap.nextElementSibling; exp.hidden = false;
+  exp.innerHTML = `<b>${ok ? 'Tama!' : 'Mali.'}</b> Sagot: <b>${NAME[ans]}</b>. ${esc(why)}`;
+  updateScore();
+});
+document.getElementById('resetQuiz').addEventListener('click', renderQuiz);
+renderQuiz();
+
+const HANDS = [
+  ['syn', 'Burahin ang `;` sa dulo ng `return back()->with(...)` sa `LeaveRequestController.php`, tapos buksan ang Leave page.', 'Pulang page: `syntax error, unexpected ...`. Pansinin ang line number.'],
+  ['run', 'Palitan ang `leaveRequests()` ng `leaveRequest()` sa `index()`.', '`Call to undefined method App\\Models\\User::leaveRequest()`'],
+  ['run', 'Sa `Inertia::render(\'Employee/Leave\', ...)`, palitan ang `\'requests\'` ng `\'leaves\'`.', 'Blangkong page. Sa F12 Console: `Cannot read properties of undefined`.'],
+  ['log', 'Palitan ang `&&` ng `||` sa `SubmitLeaveRequest.php:31`. Mag-file ng leave na "Client informed: No" at walang proof.', 'Status ay "Needs verification" (mali). Babagsak ang `php artisan test --filter=LeaveRequest`.'],
+];
+fill('hands', HANDS, ([t, d, r]) => `<tr><td>${tags(t)}</td><td>${md(d)}</td><td>${md(r)}</td></tr>`);
+
+/* Tabs + hash */
+const tablist = document.getElementById('tablist');
+tablist.innerHTML = TABS.map(([k, label, c]) => `<button type="button" class="tab" role="tab" id="t-${k}" aria-controls="p-${k}" aria-selected="false" data-k="${k}"><span class="dot" style="background:${c}"></span>${label}</button>`).join('');
+const panels = [...document.querySelectorAll('[data-tab]')];
+let current = 'mapa';
+function show(k, push) {
+  if (!TABS.some((t) => t[0] === k)) k = 'mapa';
+  current = k;
+  tablist.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.k === k)));
+  if (!q.value.trim()) panels.forEach((p) => { p.hidden = p.dataset.tab !== k; });
+  if (push) { try { history.replaceState(null, '', '#' + k); } catch (e) {} try { localStorage.setItem('arka-debug-tab', k); } catch (e) {} }
+  const t = document.getElementById('t-' + k); if (t && t.scrollIntoView) t.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+tablist.addEventListener('click', (e) => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  if (q.value.trim()) { q.value = ''; applySearch(); }
+  show(b.dataset.k, true); window.scrollTo({ top: 0 });
+});
+tablist.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const i = TABS.findIndex((t) => t[0] === current);
+  const n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length][0];
+  show(n, true); document.getElementById('t-' + n).focus();
+});
+
+/* Search across every tab */
+const q = document.getElementById('q');
+function applySearch() {
+  const term = q.value.trim().toLowerCase();
+  const items = document.querySelectorAll('table[data-searchable] tbody tr, [data-search]');
+  if (!term) {
+    items.forEach((el) => { el.hidden = false; el.classList.remove('searchhit'); });
+    document.querySelectorAll('.tbl, .box, .note, .grid3, .grid2, .arch, .types, .oneline, .flow-switch, .panel-head').forEach((el) => { el.hidden = false; });
+    document.getElementById('noResults').hidden = true;
+    panels.forEach((p) => { p.hidden = p.dataset.tab !== current; });
+    return;
+  }
+  let total = 0;
+  items.forEach((el) => { const hit = el.textContent.toLowerCase().includes(term); el.hidden = !hit; el.classList.toggle('searchhit', hit && el.tagName === 'TR'); });
+  panels.forEach((p) => {
+    let n = 0;
+    p.querySelectorAll('.tbl').forEach((t) => { const c = [...t.querySelectorAll('tbody tr, [data-search]')].filter((r) => !r.hidden).length; t.hidden = c === 0; n += c; });
+    p.querySelectorAll('[data-search]').forEach((s) => { if (!s.hidden && !s.closest('.tbl')) n++; });
+    p.querySelectorAll('.box').forEach((b) => { if (b.querySelector('.tbl')) b.hidden = [...b.querySelectorAll('.tbl')].every((t) => t.hidden); });
+    p.querySelectorAll('.note, .grid3, .grid2, .arch, .types, .oneline, .flow-switch, .box.decide').forEach((el) => { el.hidden = true; });
+    p.querySelectorAll('ol.steps li').forEach((li) => { li.hidden = li.querySelector('[data-search]').hidden; });
+    p.querySelectorAll('.qcard').forEach(() => {});
+    p.hidden = n === 0; total += n;
+  });
+  document.getElementById('noResults').hidden = total > 0;
+}
+q.addEventListener('input', applySearch);
+document.getElementById('searchForm').addEventListener('submit', (e) => e.preventDefault());
+document.getElementById('clearQ').addEventListener('click', () => { q.value = ''; applySearch(); q.focus(); });
+
+let start = (location.hash || '').slice(1);
+if (!start) { try { start = localStorage.getItem('arka-debug-tab') || ''; } catch (e) {} }
+show(start || 'mapa', false);
+window.addEventListener('hashchange', () => show(location.hash.slice(1), false));
+</script>
